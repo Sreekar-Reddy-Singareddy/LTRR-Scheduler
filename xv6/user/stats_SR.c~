@@ -1,0 +1,22 @@
+#include "types.h"
+#include "stat.h"
+#include "user.h"
+#include "fs.h"
+#include "fcntl.h"
+#include "syscall.h"
+#include "traps.h"
+#include "pstat.h"
+
+int main (void) {
+  struct pstat * stats = {0};
+  printf(1,"Inside stats_SR.c main()\n");
+  getpinfo(stats);
+  printf(1,"Statistics:\n==============================================================\n");
+  int i=0;
+  int size = 64;
+  printf(1,"Stats: %p\n", *stats);
+  for (; i < size; i++){
+    printf(1,"I: %d -- In use: %d; Tickets: %d; PID: %d; Ticks: %d\n", i, stats->inuse[i], stats->tickets[i], stats->pid[i], stats->ticks[i]);
+  }
+  exit();
+}
