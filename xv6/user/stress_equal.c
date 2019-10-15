@@ -86,7 +86,7 @@ int checkVariance(int *pid_chds, struct pstat *before, struct pstat *after, int 
      return -1;
    }
    var /= count;
-   printf(1, "Variance: ~%d\n",(int)var);
+   // printf(1, "Variance: ~%d\n",(int)var);
    if (var < tol)
      return 0;
    else{
@@ -147,6 +147,7 @@ main(int argc, char *argv[])
    
    if (checkVariance(pid_chds,&st_before,&st_after,i) < 0)
      goto Cleanup;
+   printf(1, "Variance check passed. Within limits. \n");
    printf(1, "Should print 1 then 2");
    
 Cleanup:

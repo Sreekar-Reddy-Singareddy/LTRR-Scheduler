@@ -11,12 +11,11 @@ int main (void) {
   struct pstat * stats = malloc(sizeof(struct pstat));
   printf(1,"Inside stats_SR.c main()\n");
   getpinfo(stats);
-  printf(1,"Statistics:\n==============================================================\n");
   int i=0;
   int size = 64;
-  printf(1,"Stats: %p\n", *stats);
   for (; i < size; i++){
-    printf(1,"I: %d -- In use: %d; Tickets: %d; PID: %d; Ticks: %d\n", i, stats->inuse[i], stats->tickets[i], stats->pid[i], stats->ticks[i]);
+    if (stats->pid[i] == 0) break;
+    printf(1,"I: %d -- Use: %d; Tickets: %d; PID: %d Ticks: %d\n", i, stats->inuse[i], stats->tickets[i], stats->pid[i], stats->ticks[i]);
   }
   exit();
 }

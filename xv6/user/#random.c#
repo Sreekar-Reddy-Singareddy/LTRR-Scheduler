@@ -106,7 +106,7 @@ main(int argc, char *argv[])
    printf(1,"Variance: %d\nDirection change percentage: %d%%\n",var,negcount*100/rounds);
    if (var < tol || negcount*15 < rounds){
      printf(1,"check failed: Scheduling not random enough\n");
-     goto Cleanup;
+x     goto Cleanup;
    }
    printf(1, "Should print 1 then 2");
    

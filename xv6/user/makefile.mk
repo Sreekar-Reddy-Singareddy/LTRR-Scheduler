@@ -19,8 +19,16 @@ USER_PROGS := \
 	ticks_SR\
 	stats_SR\
 	getpinfo\
-	forkbomb\
 	setticket\
+	default_tickets\
+	forktickets\
+	high_tickets\
+	processesinuse\
+	switch_tickets\
+	high_sleep\
+	stress_equal\
+	stress_manylow\
+random\
 	zombie
 
 USER_PROGS := $(addprefix user/, $(USER_PROGS))

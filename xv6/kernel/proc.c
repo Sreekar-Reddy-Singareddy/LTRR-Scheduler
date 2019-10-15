@@ -7,7 +7,8 @@
 #include "spinlock.h"
 #include "pstat.h"
 
-extern struct pstat *report;
+unsigned long next = 1;
+long total_tickets = 1;
 
 struct {
   struct spinlock lock;
@@ -49,7 +50,7 @@ found:
   p->state = EMBRYO;
   p->pid = nextpid++;
   p->tickets = 1;
-  cprintf("Allocated process now has ID: %d State: %d Tickets: %d\n", p->pid, p->state, p->tickets);
+  //cprintf("Allocated process now has ID: %d State: %d Tickets: %d\n", p->pid, p->state, p->tickets);
   release(&ptable.lock);
 
   // Allocate kernel stack if possible.
@@ -80,11 +81,10 @@ found:
 void
 userinit(void)
 {
-  //cprintf("******* PID: %d \n",report->pid[0]);
   struct proc *p;
   extern char _binary_initcode_start[], _binary_initcode_size[];
   
-  p = allocproc();
+  p = allocproc(); // Even the first process needs to be allocated
   acquire(&ptable.lock);
   initproc = p;
   if((p->pgdir = setupkvm()) == 0)
@@ -161,11 +161,15 @@ fork(void)
  
   pid = np->pid;
   np->state = RUNNABLE;
+  
   /* Added by Sreekar - SXS190008
   ** Inheriting the tickets from parent 
   ** process.
   */
+  acquire(&ptable.lock);
   np->tickets = proc->tickets;
+  total_tickets += proc->tickets;
+  release(&ptable.lock);
   /* End of added code */
   safestrcpy(np->name, proc->name, sizeof(proc->name));
   cprintf("Parent PID: %d Tickets: %d and Child PID: %d Tickets: %d\n", proc->pid, proc->tickets, np->pid, np->tickets);
@@ -208,6 +212,9 @@ exit(void)
         wakeup1(initproc);
     }
   }
+
+  // Reduce the number of total tickets now
+  total_tickets -= proc->tickets;
 
   // Jump into the scheduler, never to return.
   proc->state = ZOMBIE;
@@ -269,6 +276,9 @@ void
 scheduler(void)
 {
   struct proc *p;
+   int current = 0;
+  int total_tic = 0;
+  int win_num = 0;
 
   for(;;){
     // Enable interrupts on this processor.
@@ -276,28 +286,34 @@ scheduler(void)
 
     // Loop over process table looking for process to run.
     acquire(&ptable.lock);
+
+    current = 0;
+    total_tic = total_lottery();
+    win_num = pick_random(total_tic);
+    
     for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+
       if(p->state != RUNNABLE)
         continue;
 
-      // Switch to chosen process.  It is the process's job
-      // to release ptable.lock and then reacquire it
-      // before jumping back to us.
-      proc = p;
-      switchuvm(p);
-      // MODIFIED
-      //int index = p - ptable.proc;
-      //cprintf("Process: %d Index: %d\n",proc->pid, index);
-      //cprintf("New process running one %d -- %s\n", p->pid, p->name);
-      p->state = RUNNING;
-      swtch(&cpu->scheduler, proc->context);
-      //cprintf("New process running two %d -- %s\n", p->pid, p->name);
-      switchkvm();
-      //cprintf("New process running three %d -- %s\n", p->pid, p->name);
+      if ((current + p->tickets) < win_num){
+	current += p->tickets;
+	continue;
+      }
 
-      // Process is done running for now.
-      // It should have changed its p->state before coming back.
-      proc = 0;
+	// Switch to chosen process.  It is the process's job                                                                   
+	// to release ptable.lock and then reacquire it                                                                       
+	// before jumping back to us.                                                                              
+        proc = p;
+	switchuvm(p);
+	p->state = RUNNING; 
+	p->ticks += 1;
+	swtch(&cpu->scheduler, proc->context);
+	switchkvm();
+
+	// Process is done running for now.                                                                                      
+	// It should have changed its p->state before coming back.                                                              
+	proc = 0;
     }
     release(&ptable.lock);
 
@@ -310,7 +326,9 @@ scheduler(void)
 */
 int settickets(int tickets) {
   acquire(&ptable.lock);
-  proc->tickets = proc->tickets + tickets;
+  total_tickets -= proc->tickets; // Remove previous number of tickets of this process
+  proc->tickets = tickets; // Increasing the number of tickets for current process
+  total_tickets += tickets; // Keep track of total tickets alive at this point
   release(&ptable.lock);
   cprintf("PID: %d now has %d tickets\n", proc->pid, proc->tickets);
   return 0;
@@ -325,10 +343,12 @@ int getpinfo(struct pstat * stats) {
   // Get the lock for ptable
   acquire(&ptable.lock);
   cprintf("Inside getpinfo & stats = %p\n", *stats);
-  int i = 0;
+  int i = 0, used = 0;
   for (process = ptable.proc; process < &ptable.proc[NPROC]; process++) {
-    cprintf("Index: %d & Stats: %d\n", i, stats->inuse[i]);
-    stats->inuse[i] = process->state; // Process state
+    if (process->state != 0) {
+      used++;
+      stats->inuse[i] = 1; // Process state
+    }
     stats->tickets[i] = process->tickets; // Tickets of this process
     stats->pid[i] = process->pid; // PID od process
     stats->ticks[i] = process->ticks; // Number of times this process was called
@@ -336,7 +356,7 @@ int getpinfo(struct pstat * stats) {
   }
   // Release the lock for ptable
   release(&ptable.lock);
-  return 0;
+  return used;
 }
 /* End of added code */
 
@@ -498,4 +518,24 @@ procdump(void)
   }
 }
 
+/* Added by Sreekar - SXS190008
+** Generates random number in some given range
+*/
+int
+pick_random(int rand_max){
+  next = next * 1103515245 + 12345;
+  return next%rand_max+1;
+}
 
+int
+total_lottery() {
+  int total=1;
+  struct proc *p;
+  for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+    if(p->state != RUNNABLE)
+      continue;
+    total += p->tickets;
+  }
+  //  cprintf("Lottery Tickets: %d\n", total);
+  return total;
+}

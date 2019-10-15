@@ -10,6 +10,12 @@ int main () {
   printf(1,"PID: %d - Inside ticks.c\n", getpid());
   int tickets = 270;
   settickets(tickets);
-  fork();
+  if (fork() == 0){
+    printf(1,"Im Child PID = %d\n", getpid());
+  }
+  else {
+    printf(1, "Im Paren PID = %d\n", getpid());
+    wait();
+  }
   exit();
 }

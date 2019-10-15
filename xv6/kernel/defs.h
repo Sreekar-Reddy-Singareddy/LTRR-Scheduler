@@ -116,6 +116,8 @@ void            yield(void);
 */
 int             settickets(int);
 int             getpinfo(struct pstat *);
+int             pick_random(int);
+int total_lottery();
 /* End of added code */
 
 // swtch.S

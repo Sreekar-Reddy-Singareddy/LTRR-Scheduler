@@ -14,6 +14,6 @@ main(int argc, char *argv[])
    check(settickets(1000000) == 0, "settickets to 1000000");
    check(settickets(0) == -1, "settickets to 0");
    check(settickets(-1) == -1, "settickets to < 0");
-   printf(1, "Should print 1 then 2\n");
+   printf(1, "Should print 1 then 2");
    exit();
 }
